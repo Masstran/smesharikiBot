@@ -1,0 +1,11 @@
+{
+	"API_TOKEN": "API_TOKEN",
+	"data_path": "data/data.json",
+	"userlist_path": "data/userlist.json",
+	"admin_user_id": [0],
+	"chat_id": 0,
+	"p_stickers": ["AgADFAADk04pGw", "AgADFQADk04pGw"],
+	"rp_stickers": ["AgADzw0AAsqFWEg"],
+	"sp_stickers": ["AgADpwwAAq1WUUg"],
+	"ap_stickers": ["AgADFgADk04pGw"]
+}
