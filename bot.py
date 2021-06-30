@@ -68,26 +68,21 @@ def get_userlist():
         return userlist
 
 
-def add_user(id, name):
-    userlist = get_userlist()
-    logging.info(userlist)
-    if id not in userlist:
-        userlist[id] = name
-    logging.info(userlist)
-    with open(userlist_path, "w", encoding="utf-8") as userlistfile:
-        json.dump(userlist, userlistfile, ensure_ascii=False, indent=4)
-
-
-def check_user(message):
+def add_user(message):
     user = message.from_user
     name = user.first_name + ((" " + user.last_name) if user.last_name is not None else "")
     if not user.is_bot:
-        add_user(user.id, name)
+        userlist = get_userlist()
+        if id not in userlist:
+            userlist[id] = name
+        with open(userlist_path, "w", encoding="utf-8") as userlistfile:
+            json.dump(userlist, userlistfile, ensure_ascii=False, indent=4)
+
+
+def check_user(message):
+    add_user(message)
     if message.reply_to_message is not None:
-        user = message.reply_to_message.from_user
-        name = user.first_name + (" " + user.last_name if user.last_name is not None else "")
-        if not user.is_bot:
-            add_user(user.id, name)
+        add_user(message)
 
 
 def create_markup(tp):
@@ -111,7 +106,7 @@ async def prepare_p(message: types.Message):
     chatMembersWithActivatedInfo = [(x, False) for x in chatMember if not x.user.is_bot]
     # chatMembersWithActivatedInfo = [(x, False) for x in get_userlist()]
     keyboardMarkup = create_markup(chatMembersWithActivatedInfo)
-    logging.info(str(keyboardMarkup))
+    logging.debug(str(keyboardMarkup))
 
 
 @dp.message_handler(content_types=ContentTypes.STICKER, user_id=admin_user_id)
@@ -119,11 +114,11 @@ async def detect_stickers(message: types.Message):
     check_user(message)
     user_id = message.from_user.id
     sticker_id = message.sticker.file_unique_id
-    logging.info(f"{user_id}: `{sticker_id}`")
-    logging.info(type(sticker_id))
-    logging.info(p_sticker_ids)
-    logging.info(admin_user_id)
-    logging.info(f"user_id in admin_user_id: {user_id in admin_user_id} and sticker_id in p_sticker_ids: {sticker_id in p_sticker_ids}")
+    logging.debug(f"{user_id}: `{sticker_id}`")
+    logging.debug(type(sticker_id))
+    logging.debug(p_sticker_ids)
+    logging.debug(admin_user_id)
+    logging.debug(f"user_id in admin_user_id: {user_id in admin_user_id} and sticker_id in p_sticker_ids: {sticker_id in p_sticker_ids}")
     if user_id in admin_user_id and sticker_id in p_sticker_ids:
         if message.reply_to_message is None:
             global current_active_users
@@ -176,15 +171,16 @@ async def decline_callback(call: types.CallbackQuery, callback_data: dict):
 
 @dp.message_handler(commands=['test'])
 async def ttt(message: types.Message):
-    arguments = message.get_args()
-    await message.answer(text=arguments)
+    check_user(message)
+    data = get_data()
+    await message.answer(text=data)
 
 
 @dp.message_handler(content_types=ContentTypes.ANY)
 async def default(message: types.Message):
     check_user(message)
 
-    logging.info("MESSAGE")
+    logging.debug("MESSAGE")
 #    await message.answer(f"{user_id}\n`{message.sticker.sticker_id}`", parse_mode="MarkdownV2")
 
 if __name__ == '__main__':
@@ -193,7 +189,7 @@ if __name__ == '__main__':
 
 # chatMembersWithActivatedInfo = [(bot.get_chat_member(chat_id, x), False) for x in get_userlist() if not (bot.get_chat_member is None and bot.get_chat_member(chat_id, x).user.is_bot)]
 # keyboardMarkup = create_markup(chatMembersWithActivatedInfo)
-# logging.info(str(keyboardMarkup))
+# logging.debug(str(keyboardMarkup))
 # async def a():
 #     chatMember = [await bot.get_chat_member(chat_id, x) for x in get_userlist()]
 #     await bot.send_message(chat_id=chat_id, text=chatMember[0].user.is_bot)
