@@ -70,11 +70,12 @@ def get_userlist():
 
 def add_user(message):
     user = message.from_user
+    user_id = user.id
     name = user.first_name + ((" " + user.last_name) if user.last_name is not None else "")
     if not user.is_bot:
         userlist = get_userlist()
-        if id not in userlist:
-            userlist[id] = name
+        if user_id not in userlist:
+            userlist[user_id] = name
         with open(userlist_path, "w", encoding="utf-8") as userlistfile:
             json.dump(userlist, userlistfile, ensure_ascii=False, indent=4)
 
@@ -136,7 +137,6 @@ async def detect_stickers(message: types.Message):
             add_data(reply_user_id, "P")
             # Should add the actual count of punishment
             await message.answer(f"I guess user {reply_user_id} is getting pwned")
-
     elif user_id in admin_user_id and sticker_id in ap_sticker_ids:
         print("f")
 
@@ -156,7 +156,7 @@ async def answer_callback(call: types.CallbackQuery, callback_data: dict):
             ids = [x for x in current_active_users if current_active_users[x][1]]
             add_data(ids, tp)
             current_active_users = {}
-            await call.message.edit_text("Confirmed, but nothing is yet done")
+            await call.message.edit_text(f"Confirmed, people with ids in {ids} are screwed")
         else:
             current_active_users[int(data)][1] = not current_active_users[int(data)][1]
             keyboardMarkup = create_markup(tp)
