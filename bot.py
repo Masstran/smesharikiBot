@@ -110,7 +110,7 @@ async def prepare_p(message: types.Message):
     logging.debug(str(keyboardMarkup))
 
 
-@dp.message_handler(content_types=ContentTypes.STICKER, user_id=admin_user_id)
+@dp.message_handler(content_types=ContentTypes.STICKER)
 async def detect_stickers(message: types.Message):
     check_user(message)
     user_id = message.from_user.id
@@ -138,7 +138,13 @@ async def detect_stickers(message: types.Message):
             # Should add the actual count of punishment
             await message.answer(f"I guess user {reply_user_id} is getting pwned")
     elif user_id in admin_user_id and sticker_id in ap_sticker_ids:
-        print("f")
+        userlist = get_userlist()
+        ids = userlist.keys()
+        add_data(ids, "P")
+        await message.answer(f"EVERYONE IS GETTING IT!!! {ids}")
+    elif sticker_id in sp_sticker_ids:
+        add_data(user_id, "P")
+        await message.answer("You've brought it on yourself!")
 
 
 @dp.callback_query_handler(callback_select_users.filter(), user_id=admin_user_id)
