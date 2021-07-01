@@ -77,8 +77,7 @@ def get_userlist():
         return userlist
 
 
-def add_user(message):
-    user = message.from_user
+def add_user(user):
     user_id = user.id
     name = user.first_name + ((" " + user.last_name) if user.last_name is not None else "")
     username = user.username
@@ -93,10 +92,17 @@ def add_user(message):
             json.dump(userlist, userlistfile, ensure_ascii=False, indent=4)
 
 
+def del_user(user_id):
+    userlist = get_userlist()
+    userlist.pop(user_id)
+    with open(userlist_path, "w", encoding="utf-8") as userlistfile:
+        json.dump(userlist, userlistfile, ensure_ascii=False, indent=4)
+
+
 def check_user(message):
-    add_user(message)
+    add_user(message.from_user)
     if message.reply_to_message is not None:
-        add_user(message.reply_to_message)
+        add_user(message.reply_to_message.from_user)
 
 
 def create_markup(tp):
@@ -210,6 +216,21 @@ async def clear_person(message: types.Message):
             await message.answer(f"User {user_id} is clear of all bad (and good) stuff")
 
 
+@dp.chat_member_handler()
+async def checkNewAndOldUsers(chat_member: types.ChatMemberUpdated):
+    old_status = chat_member.old_chat_member.status
+    new_status = chat_member.new_chat_member.status
+    user_id = chat_member.new_chat_member.user.id
+    logging.info(f"Old chat status: {old_status} and new is: {new_status}")
+    logging.info(f"User id is: {user_id} ({chat_member.old_chat_member.user.id})")
+    if new_status in ("member", "administrator"):
+        add_user(chat_member.new_chat_member.user)
+        # await bot.send_message(chat_member.chat.id, text=f"Oh wow, user {user_id} has joined the chat!!")
+    elif old_status in ("member", "administrator") and new_status in ("kicked", "left"):
+        del_user(user_id)
+        # await bot.send_message(chat_member.chat.id, text=f"Oh wow, user {user_id} has left the chat =/")
+
+
 @dp.message_handler(commands=['test'])
 async def ttt(message: types.Message):
     check_user(message)
@@ -239,4 +260,4 @@ async def default(message: types.Message):
 #    await message.answer(f"{user_id}\n`{message.sticker.sticker_id}`", parse_mode="MarkdownV2")
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=False)
+    executor.start_polling(dp, skip_updates=False, allowed_updates=types.update.AllowedUpdates.default() + types.update.AllowedUpdates.CHAT_MEMBER)
