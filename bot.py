@@ -75,6 +75,7 @@ def add_user(message):
     if not user.is_bot:
         userlist = get_userlist()
         if user_id not in userlist:
+            logging.info(f"Added user {user_id} ({name}) to userlist")
             userlist[user_id] = name
         with open(userlist_path, "w", encoding="utf-8") as userlistfile:
             json.dump(userlist, userlistfile, ensure_ascii=False, indent=4)
@@ -105,9 +106,25 @@ async def prepare_p(message: types.Message):
     # Chat members with activation sign
     chatMember = [await bot.get_chat_member(chat_id, x) for x in get_userlist()]
     chatMembersWithActivatedInfo = [(x, False) for x in chatMember if not x.user.is_bot]
-    # chatMembersWithActivatedInfo = [(x, False) for x in get_userlist()]
     keyboardMarkup = create_markup(chatMembersWithActivatedInfo)
     logging.debug(str(keyboardMarkup))
+
+
+async def reactToSticker(message: types.Message, tp: str):
+    if message.reply_to_message is None:
+        global current_active_users
+        if current_active_users == {}:
+            userlist = get_userlist()
+            for key in userlist:
+                current_active_users[key] = [userlist[key], False]
+            keyboardMarkup = create_markup(tp)
+            await message.answer("Select da people for " + tp, reply_markup=keyboardMarkup)
+        else:
+            await message.answer("Some other selection is active, please finish it first")
+    else:
+        reply_user_id = message.reply_to_message.from_user.id
+        add_data(reply_user_id, tp)
+        await message.answer(f"I guess user {reply_user_id} is getting " + tp)
 
 
 @dp.message_handler(content_types=ContentTypes.STICKER)
@@ -121,22 +138,9 @@ async def detect_stickers(message: types.Message):
     logging.debug(admin_user_id)
     logging.debug(f"user_id in admin_user_id: {user_id in admin_user_id} and sticker_id in p_sticker_ids: {sticker_id in p_sticker_ids}")
     if user_id in admin_user_id and sticker_id in p_sticker_ids:
-        if message.reply_to_message is None:
-            global current_active_users
-            if current_active_users == {}:
-                current_active_users.clear()
-                userlist = get_userlist()
-                for key in userlist:
-                    current_active_users[key] = [userlist[key], False]
-                keyboardMarkup = create_markup("P")
-                await message.answer("Select da people", reply_markup=keyboardMarkup)
-            else:
-                await message.answer("Some other selection is active, please finish it first")
-        else:
-            reply_user_id = message.reply_to_message.from_user.id
-            add_data(reply_user_id, "P")
-            # Should add the actual count of punishment
-            await message.answer(f"I guess user {reply_user_id} is getting pwned")
+        await reactToSticker(message, "P")
+    elif user_id in admin_user_id and sticker_id in rp_sticker_ids:
+        await reactToSticker(message, "RP")
     elif user_id in admin_user_id and sticker_id in ap_sticker_ids:
         userlist = get_userlist()
         ids = userlist.keys()
@@ -162,7 +166,7 @@ async def answer_callback(call: types.CallbackQuery, callback_data: dict):
             ids = [x for x in current_active_users if current_active_users[x][1]]
             add_data(ids, tp)
             current_active_users = {}
-            await call.message.edit_text(f"Confirmed, people with ids in {ids} are screwed")
+            await call.message.edit_text(f"Confirmed, people with ids in {ids} are getting " + tp)
         else:
             current_active_users[int(data)][1] = not current_active_users[int(data)][1]
             keyboardMarkup = create_markup(tp)
@@ -185,21 +189,9 @@ async def ttt(message: types.Message):
 @dp.message_handler(content_types=ContentTypes.ANY)
 async def default(message: types.Message):
     check_user(message)
-
     logging.debug("MESSAGE")
 #    await message.answer(f"{user_id}\n`{message.sticker.sticker_id}`", parse_mode="MarkdownV2")
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=False)
 
-
-# chatMembersWithActivatedInfo = [(bot.get_chat_member(chat_id, x), False) for x in get_userlist() if not (bot.get_chat_member is None and bot.get_chat_member(chat_id, x).user.is_bot)]
-# keyboardMarkup = create_markup(chatMembersWithActivatedInfo)
-# logging.debug(str(keyboardMarkup))
-# async def a():
-#     chatMember = [await bot.get_chat_member(chat_id, x) for x in get_userlist()]
-#     await bot.send_message(chat_id=chat_id, text=chatMember[0].user.is_bot)
-
-# import asyncio
-
-# asyncio.run(a())
