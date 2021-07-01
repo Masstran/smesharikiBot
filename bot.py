@@ -59,6 +59,15 @@ def add_data(ids, tp):
         json.dump(data, datafile, ensure_ascii=False, indent=4)
 
 
+def reset_data(user_id):
+    data = get_data()
+    data[user_id] = {}
+    data[user_id]["P"] = 0
+    data[user_id]["RP"] = 0
+    with open(data_path, "w", encoding="utf-8") as datafile:
+        json.dump(data, datafile, ensure_ascii=False, indent=4)
+
+
 def get_userlist():
     with open(userlist_path, "r", encoding="utf-8") as userlistfile:
         json_userlist = json.load(userlistfile)
@@ -72,11 +81,14 @@ def add_user(message):
     user = message.from_user
     user_id = user.id
     name = user.first_name + ((" " + user.last_name) if user.last_name is not None else "")
+    username = user.username
     if not user.is_bot:
         userlist = get_userlist()
         if user_id not in userlist:
             logging.info(f"Added user {user_id} ({name}) to userlist")
-            userlist[user_id] = name
+        userlist[user_id] = {}
+        userlist[user_id]["name"] = name
+        userlist[user_id]["username"] = username
         with open(userlist_path, "w", encoding="utf-8") as userlistfile:
             json.dump(userlist, userlistfile, ensure_ascii=False, indent=4)
 
@@ -84,7 +96,7 @@ def add_user(message):
 def check_user(message):
     add_user(message)
     if message.reply_to_message is not None:
-        add_user(message)
+        add_user(message.reply_to_message)
 
 
 def create_markup(tp):
@@ -116,7 +128,7 @@ async def reactToSticker(message: types.Message, tp: str):
         if current_active_users == {}:
             userlist = get_userlist()
             for key in userlist:
-                current_active_users[key] = [userlist[key], False]
+                current_active_users[key] = [userlist[key]["name"], False]
             keyboardMarkup = create_markup(tp)
             await message.answer("Select da people for " + tp, reply_markup=keyboardMarkup)
         else:
@@ -179,6 +191,25 @@ async def decline_callback(call: types.CallbackQuery, callback_data: dict):
     await call.answer(text="Не для тебя кнопка написана!!")
 
 
+@dp.message_handler(commands=['clear'], user_id=admin_user_id)
+async def clear_person(message: types.Message):
+    check_user(message)
+    for entity in message.entities:
+        user_id = None
+        if entity.type == "mention":
+            username = message.text[entity.offset + 1:entity.offset + entity.length]
+            user_id = findIdFromUsername(username)
+        elif entity.type == "text_mention":
+            user_id = entity.user.id
+        else:
+            continue
+        if user_id is None:
+            await message.answer("Wtf, why user_id is None???")
+        else:
+            reset_data(user_id)
+            await message.answer(f"User {user_id} is clear of all bad (and good) stuff")
+
+
 @dp.message_handler(commands=['test'])
 async def ttt(message: types.Message):
     check_user(message)
@@ -186,12 +217,26 @@ async def ttt(message: types.Message):
     await message.answer(text=data)
 
 
+def findIdFromUsername(username):
+    userlist = get_userlist()
+    for user_id in userlist:
+        if userlist[user_id]["username"] == username:
+            return user_id
+    return None
+
+
 @dp.message_handler(content_types=ContentTypes.ANY)
 async def default(message: types.Message):
     check_user(message)
-    logging.debug("MESSAGE")
+    logging.info(message.entities)
+    for entity in message.entities:
+        if entity.type == "mention":
+            username = message.text[entity.offset + 1:entity.offset + entity.length]
+            user_id = findIdFromUsername(username)
+            await message.answer(f"Heyyo! YOu've tagged user with id == {user_id}")
+        logging.info(f"type: {entity.type} value: {entity.user}")
+    logging.debug(f"{message.from_user}")
 #    await message.answer(f"{user_id}\n`{message.sticker.sticker_id}`", parse_mode="MarkdownV2")
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=False)
-
